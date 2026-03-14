@@ -1,5 +1,5 @@
 import React from "react";
-import DataTable from "@/components/coins/CoinsTable";
+import DataTable from "@/components/tables/DataTable";
 import { cn } from "@/lib/utils";
 
 export const CoinOverviewFallback = () => {
