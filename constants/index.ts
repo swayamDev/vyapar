@@ -8,29 +8,19 @@ import {
 import { Period } from "@/types";
 
 export const navItems = [
-  {
-    label: "Home",
-    href: "/",
-  },
-  {
-    label: "Search",
-    href: "/",
-  },
-  {
-    label: "All Coins",
-    href: "/coins",
-  },
+  { label: "Home", href: "/" },
+  { label: "All Coins", href: "/coins" },
 ];
 
 const CHART_COLORS = {
-  background: "#0b1116",
+  background: "#0c1117",
   text: "#8f9fb1",
   grid: "#1a2332",
   border: "#1a2332",
   crosshairVertical: "#ffffff40",
   crosshairHorizontal: "#ffffff20",
-  candleUp: "#158A6E",
-  candleDown: "#EB1C36",
+  candleUp: "#22c55e",
+  candleDown: "#ef4444",
 } as const;
 
 export const getCandlestickConfig = (): CandlestickSeriesPartialOptions => ({
@@ -38,13 +28,13 @@ export const getCandlestickConfig = (): CandlestickSeriesPartialOptions => ({
   downColor: CHART_COLORS.candleDown,
   wickUpColor: CHART_COLORS.candleUp,
   wickDownColor: CHART_COLORS.candleDown,
-  borderVisible: true,
+  borderVisible: false,
   wickVisible: true,
 });
 
 export const getChartConfig = (
   height: number,
-  timeVisible: boolean = true,
+  timeVisible = true,
 ): DeepPartial<ChartOptions> => ({
   width: 0,
   height,
@@ -52,7 +42,7 @@ export const getChartConfig = (
     background: { type: ColorType.Solid, color: CHART_COLORS.background },
     textColor: CHART_COLORS.text,
     fontSize: 12,
-    fontFamily: 'Inter, Roboto, "Helvetica Neue", Arial',
+    fontFamily: 'Inter, Roboto, "Helvetica Neue", Arial, sans-serif',
   },
   grid: {
     vertLines: { visible: false },
@@ -89,34 +79,32 @@ export const getChartConfig = (
   },
   localization: {
     priceFormatter: (price: number) =>
-      "$" + price.toLocaleString(undefined, { maximumFractionDigits: 2 }),
+      "$" + price.toLocaleString(undefined, { maximumFractionDigits: 6 }),
   },
 });
 
-export const PERIOD_CONFIG: Record<
-  Period,
-  { days: number | string; interval?: "hourly" | "daily" }
-> = {
-  daily: { days: 1, interval: "hourly" },
-  weekly: { days: 7, interval: "hourly" },
-  monthly: { days: 30, interval: "hourly" },
-  "3months": { days: 90, interval: "daily" },
-  "6months": { days: 180, interval: "daily" },
-  yearly: { days: 365 },
-  max: { days: "max" },
+// Free tier: CoinGecko auto-determines candle granularity based on `days`.
+// No `interval` param is sent — it's Pro-only.
+// Granularity reference:
+//   1 day  → 30-min candles
+//   7–90d  → 4-hour candles
+//   90d+   → daily candles
+export const PERIOD_CONFIG: Record<Period, { days: number | string }> = {
+  daily:    { days: 1 },
+  weekly:   { days: 7 },
+  monthly:  { days: 30 },
+  "3months":{ days: 90 },
+  "6months":{ days: 180 },
+  yearly:   { days: 365 },
+  max:      { days: "max" },
 };
 
 export const PERIOD_BUTTONS: { value: Period; label: string }[] = [
-  { value: "daily", label: "1D" },
-  { value: "weekly", label: "1W" },
-  { value: "monthly", label: "1M" },
-  { value: "3months", label: "3M" },
-  { value: "6months", label: "6M" },
-  { value: "yearly", label: "1Y" },
-  { value: "max", label: "Max" },
-];
-
-export const LIVE_INTERVAL_BUTTONS: { value: "1s" | "1m"; label: string }[] = [
-  { value: "1s", label: "1s" },
-  { value: "1m", label: "1m" },
+  { value: "daily",    label: "1D" },
+  { value: "weekly",   label: "1W" },
+  { value: "monthly",  label: "1M" },
+  { value: "3months",  label: "3M" },
+  { value: "6months",  label: "6M" },
+  { value: "yearly",   label: "1Y" },
+  { value: "max",      label: "Max" },
 ];

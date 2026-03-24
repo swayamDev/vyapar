@@ -1,23 +1,3 @@
-export interface TopGainersLosers {
-  id: string;
-  name: string;
-  symbol: string;
-  image: string;
-  price: number;
-  priceChangePercentage24h: number;
-}
-
-export interface TopGainersLosersResponse {
-  id: string;
-  name: string;
-  symbol: string;
-  image: string;
-  usd: number;
-  usd_24h_change: number;
-  usd_24h_vol: number;
-  market_cap_rank: number;
-}
-
 export interface Category {
   id: string;
   name: string;

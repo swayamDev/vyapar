@@ -1,116 +1,125 @@
-import React from "react";
 import DataTable from "@/components/tables/DataTable";
-import { cn } from "@/lib/utils";
 
-export const CoinOverviewFallback = () => {
-  return (
-    <div id="coin-overview-fallback">
-      <div className="header pt-2">
-        <div className="header-image skeleton" />
-        <div className="info">
-          <div className="header-line-sm skeleton" />
-          <div className="header-line-lg skeleton" />
-        </div>
+/* =====================
+   Shared skeleton primitives
+===================== */
+
+const Skeleton = ({ className }: { className?: string }) => (
+  <div
+    className={`animate-pulse rounded bg-muted/60 ${className ?? ""}`}
+    aria-hidden="true"
+  />
+);
+
+/* =====================
+   CoinOverview Fallback
+===================== */
+
+export const CoinOverviewFallback = () => (
+  <div aria-busy="true" aria-label="Loading market overview">
+    {/* Header row */}
+    <div className="mb-4 flex items-center gap-4 pb-4">
+      <Skeleton className="h-12 w-12 rounded-full" />
+      <div className="space-y-2">
+        <Skeleton className="h-3 w-28" />
+        <Skeleton className="h-6 w-40" />
       </div>
-      <div className="chart">
-        <div className="chart-skeleton skeleton" />
+    </div>
+    {/* Chart skeleton */}
+    <Skeleton className="h-[360px] w-full rounded-xl" />
+  </div>
+);
+
+/* =====================
+   TrendingCoins Fallback
+===================== */
+
+type SkeletonRow = { id: number };
+
+const trendingSkeletonColumns = [
+  {
+    header: "Coin",
+    cell: () => (
+      <div className="flex items-center gap-3">
+        <Skeleton className="h-8 w-8 rounded-full" />
+        <Skeleton className="h-3 w-24" />
       </div>
-    </div>
-  );
-};
+    ),
+  },
+  {
+    header: "24h",
+    cell: () => <Skeleton className="h-3 w-12" />,
+  },
+  {
+    header: "Price",
+    cell: () => <Skeleton className="h-3 w-16" />,
+  },
+];
 
-export const TrendingCoinsFallback = () => {
-  const columns = [
-    {
-      header: "Name",
-      cell: () => (
-        <div className="name-link">
-          <div className="name-image skeleton" />
-          <div className="name-line skeleton" />
-        </div>
-      ),
-    },
-    {
-      header: "24h Change",
-      cell: () => (
-        <div className="price-change">
-          <div className="change-icon skeleton" />
-          <div className="change-line skeleton" />
-        </div>
-      ),
-    },
-    {
-      header: "Price",
-      cell: () => <div className="price-line skeleton" />,
-    },
-  ];
+const trendingDummyData: SkeletonRow[] = Array.from({ length: 6 }, (_, i) => ({
+  id: i,
+}));
 
-  const dummyData = Array.from({ length: 6 }, (_, i) => ({ id: i }));
+export const TrendingCoinsFallback = () => (
+  <div aria-busy="true" aria-label="Loading trending coins">
+    <DataTable
+      data={trendingDummyData}
+      columns={trendingSkeletonColumns as Parameters<typeof DataTable>[0]["columns"]}
+      rowKey={(item) => item.id}
+      tableClassName="w-full"
+      headerCellClassName="text-xs font-medium text-muted-foreground py-3"
+      bodyCellClassName="py-3"
+    />
+  </div>
+);
 
-  return (
-    <div id="trending-coins-fallback">
-      <h4>Trending Coins</h4>
-      <DataTable
-        data={dummyData}
-        columns={columns as any}
-        rowKey={(item: any) => item.id}
-        tableClassName="trending-coins-table"
-      />
-    </div>
-  );
-};
+/* =====================
+   Categories Fallback
+===================== */
 
-export const CategoriesFallback = () => {
-  const columns = [
-    {
-      header: "Category",
-      cellClassName: "category-cell",
-      cell: () => <div className="category-line skeleton" />,
-    },
-    {
-      header: "Top Gainers",
-      cellClassName: "top-gainers-cell",
-      cell: () => (
-        <div className="flex gap-1">
-          <div className="gainer-image skeleton" />
-          <div className="gainer-image skeleton" />
-          <div className="gainer-image skeleton" />
-        </div>
-      ),
-    },
-    {
-      header: "24h Change",
-      cellClassName: "change-header-cell",
-      cell: () => (
-        <div className="change-cell">
-          <div className="change-icon skeleton" />
-          <div className="change-line skeleton" />
-        </div>
-      ),
-    },
-    {
-      header: "Market Cap",
-      cellClassName: "market-cap-cell",
-      cell: () => <div className="value-skeleton-lg skeleton" />,
-    },
-    {
-      header: "24h Volume",
-      cellClassName: "volume-cell",
-      cell: () => <div className="value-skeleton-md skeleton" />,
-    },
-  ];
+const categoriesSkeletonColumns = [
+  {
+    header: "Category",
+    cell: () => <Skeleton className="h-3 w-32" />,
+  },
+  {
+    header: "Top Coins",
+    cell: () => (
+      <div className="flex gap-1">
+        <Skeleton className="h-7 w-7 rounded-full" />
+        <Skeleton className="h-7 w-7 rounded-full" />
+        <Skeleton className="h-7 w-7 rounded-full" />
+      </div>
+    ),
+  },
+  {
+    header: "24h",
+    cell: () => <Skeleton className="h-3 w-12" />,
+  },
+  {
+    header: "Market Cap",
+    cell: () => <Skeleton className="h-3 w-20" />,
+  },
+  {
+    header: "Volume (24h)",
+    cell: () => <Skeleton className="h-3 w-16" />,
+  },
+];
 
-  const dummyData = Array.from({ length: 10 }, (_, i) => ({ id: i }));
+const categoriesDummyData: SkeletonRow[] = Array.from(
+  { length: 10 },
+  (_, i) => ({ id: i }),
+);
 
-  return (
-    <div id="categories-fallback">
-      <h4>Top Categories</h4>
-      <DataTable
-        data={dummyData}
-        columns={columns as any}
-        rowKey={(item: any) => item.id}
-        tableClassName="mt-3"
-      />
-    </div>
-  );
-};
+export const CategoriesFallback = () => (
+  <div aria-busy="true" aria-label="Loading categories">
+    <DataTable
+      data={categoriesDummyData}
+      columns={categoriesSkeletonColumns as Parameters<typeof DataTable>[0]["columns"]}
+      rowKey={(item) => item.id}
+      tableClassName="w-full"
+      headerCellClassName="text-xs font-medium text-muted-foreground py-3"
+      bodyCellClassName="py-3"
+    />
+  </div>
+);

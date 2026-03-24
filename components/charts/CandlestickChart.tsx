@@ -1,11 +1,17 @@
 "use client";
 
-import { useEffect, useRef, useState, useTransition, useMemo } from "react";
+import {
+  useEffect,
+  useRef,
+  useState,
+  useTransition,
+  useMemo,
+  useCallback,
+} from "react";
 
 import {
   getCandlestickConfig,
   getChartConfig,
-  LIVE_INTERVAL_BUTTONS,
   PERIOD_BUTTONS,
   PERIOD_CONFIG,
 } from "@/constants";
@@ -15,7 +21,6 @@ import {
   createChart,
   IChartApi,
   ISeriesApi,
-  UTCTimestamp,
 } from "lightweight-charts";
 
 import { CandlestickChartProps, Period, OHLCData } from "@/types";
@@ -23,209 +28,172 @@ import { convertOHLCData } from "@/lib/utils";
 
 const CandlestickChart = ({
   children,
-  data,
+  data = [],
   coinId,
   height = 360,
   initialPeriod = "daily",
-  liveOhlcv = null,
-  mode = "historical",
-  liveInterval,
-  setLiveInterval,
 }: CandlestickChartProps) => {
   const chartContainerRef = useRef<HTMLDivElement | null>(null);
   const chartRef = useRef<IChartApi | null>(null);
   const candleSeriesRef = useRef<ISeriesApi<"Candlestick"> | null>(null);
-  const prevOhlcDataLength = useRef<number>(data?.length || 0);
+  const prevDataLengthRef = useRef<number>(data.length);
+  const isChartReadyRef = useRef(false);
 
-  const [period, setPeriod] = useState(initialPeriod);
-  const [ohlcData, setOhlcData] = useState<OHLCData[]>(data ?? []);
+  const [period, setPeriod] = useState<Period>(initialPeriod);
+  const [ohlcData, setOhlcData] = useState<OHLCData[]>(data);
   const [isPending, startTransition] = useTransition();
+  const [chartError, setChartError] = useState<string | null>(null);
 
-  /* =========================
-     Fetch OHLC (SAFE CLIENT)
-  ========================== */
-  const fetchOHLCData = async (selectedPeriod: Period) => {
-    try {
-      const { days, interval } = PERIOD_CONFIG[selectedPeriod];
+  const fetchOHLCData = useCallback(
+    async (selectedPeriod: Period) => {
+      try {
+        const { days } = PERIOD_CONFIG[selectedPeriod];
+        const res = await fetch(`/api/ohlc?coinId=${coinId}&days=${days}`);
 
-      const res = await fetch(
-        `/api/ohlc?coinId=${coinId}&days=${days}&interval=${interval}`,
-      );
+        if (!res.ok) throw new Error(`HTTP ${res.status}`);
 
-      const newData = await res.json();
+        const json = await res.json();
 
-      startTransition(() => {
-        setOhlcData(newData ?? []);
-      });
-    } catch (e) {
-      console.error("Failed to fetch OHLCData", e);
-    }
-  };
+        if (!Array.isArray(json)) {
+          throw new Error(json?.error ?? "Invalid OHLC data");
+        }
 
-  const handlePeriodChange = (newPeriod: Period) => {
-    if (newPeriod === period) return;
-    setPeriod(newPeriod);
-    fetchOHLCData(newPeriod);
-  };
+        startTransition(() => {
+          setOhlcData(json);
+          setChartError(null);
+        });
+      } catch (e) {
+        const msg = e instanceof Error ? e.message : "Failed to load chart data";
+        console.error("Failed to fetch OHLC data:", e);
+        setChartError(msg);
+      }
+    },
+    [coinId],
+  );
 
-  /* =========================
-     Memoized Data (PERF)
-  ========================== */
-  const convertedData = useMemo(() => {
-    return convertOHLCData(
-      ohlcData.map((item) => [
-        Math.floor(item[0] / 1000),
-        item[1],
-        item[2],
-        item[3],
-        item[4],
-      ]),
-    );
-  }, [ohlcData]);
+  const handlePeriodChange = useCallback(
+    (newPeriod: Period) => {
+      if (newPeriod === period) return;
+      setPeriod(newPeriod);
+      fetchOHLCData(newPeriod);
+    },
+    [period, fetchOHLCData],
+  );
 
-  /* =========================
-     Chart Init (ONLY ONCE)
-  ========================== */
+  const convertedData = useMemo(() => convertOHLCData(ohlcData), [ohlcData]);
+
+  /* Chart initialization */
   useEffect(() => {
     const container = chartContainerRef.current;
     if (!container) return;
 
-    const chart = createChart(container, {
-      ...getChartConfig(height, true),
-      width: container.clientWidth,
-    });
+    let chart: IChartApi;
 
-    const series = chart.addSeries(CandlestickSeries, getCandlestickConfig());
+    try {
+      chart = createChart(container, {
+        ...getChartConfig(height, true),
+        width: container.clientWidth,
+      });
 
-    chartRef.current = chart;
-    candleSeriesRef.current = series;
+      const series = chart.addSeries(CandlestickSeries, getCandlestickConfig());
+      chartRef.current = chart;
+      candleSeriesRef.current = series;
+      isChartReadyRef.current = true;
+    } catch (e) {
+      console.error("Chart init failed:", e);
+      setChartError("Failed to initialize chart");
+      return;
+    }
 
-    /* Resize observer (optimized) */
     let frameId: number;
 
     const observer = new ResizeObserver((entries) => {
       cancelAnimationFrame(frameId);
       frameId = requestAnimationFrame(() => {
-        chart.applyOptions({
-          width: entries[0].contentRect.width,
-        });
+        if (chartRef.current) {
+          chartRef.current.applyOptions({
+            width: entries[0].contentRect.width,
+          });
+        }
       });
     });
 
     observer.observe(container);
 
     return () => {
+      isChartReadyRef.current = false;
+      cancelAnimationFrame(frameId);
       observer.disconnect();
-      chart.remove();
+      chartRef.current?.remove();
       chartRef.current = null;
       candleSeriesRef.current = null;
     };
   }, [height]);
 
-  /* =========================
-     Set Data (FAST UPDATE)
-  ========================== */
+  /* Sync data */
   useEffect(() => {
-    if (!candleSeriesRef.current) return;
+    if (!isChartReadyRef.current || !candleSeriesRef.current) return;
+    if (convertedData.length === 0) return;
 
-    candleSeriesRef.current.setData(convertedData);
+    try {
+      candleSeriesRef.current.setData(convertedData);
 
-    const dataChanged = prevOhlcDataLength.current !== ohlcData.length;
-
-    if (dataChanged || mode === "historical") {
-      chartRef.current?.timeScale().fitContent();
-      prevOhlcDataLength.current = ohlcData.length;
+      const dataChanged = prevDataLengthRef.current !== convertedData.length;
+      if (dataChanged) {
+        chartRef.current?.timeScale().fitContent();
+        prevDataLengthRef.current = convertedData.length;
+      }
+    } catch (e) {
+      console.error("Failed to set chart data:", e);
     }
-  }, [convertedData, mode, ohlcData.length]);
-
-  /* =========================
-     Live Update (SMOOTH)
-  ========================== */
-  useEffect(() => {
-    if (!liveOhlcv || !candleSeriesRef.current) return;
-
-    const live = {
-      time: Math.floor(liveOhlcv[0] / 1000) as UTCTimestamp,
-      open: liveOhlcv[1],
-      high: liveOhlcv[2],
-      low: liveOhlcv[3],
-      close: liveOhlcv[4],
-    };
-
-    candleSeriesRef.current.update(live);
-  }, [liveOhlcv]);
+  }, [convertedData]);
 
   return (
     <div className="space-y-4">
-      {/* Header */}
       <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
-        {/* Left slot */}
         <div className="flex-1">{children}</div>
 
-        {/* Controls */}
-        <div className="flex flex-wrap items-center gap-4">
-          {/* Period */}
-          <div className="flex items-center gap-2">
-            <span className="text-muted-foreground text-xs font-medium">
-              Period
-            </span>
+        <div className="flex items-center gap-2">
+          <span className="text-muted-foreground text-xs font-medium">Period</span>
 
-            <div className="border-border flex overflow-hidden rounded-lg border">
-              {PERIOD_BUTTONS.map(({ value, label }) => (
-                <button
-                  key={value}
-                  onClick={() => handlePeriodChange(value)}
-                  disabled={isPending}
-                  className={`px-3 py-1.5 text-xs font-medium transition ${
-                    period === value
-                      ? "bg-primary text-primary-foreground"
-                      : "text-muted-foreground hover:bg-muted"
-                  }`}
-                >
-                  {label}
-                </button>
-              ))}
-            </div>
+          <div className="border-border flex overflow-hidden rounded-lg border">
+            {PERIOD_BUTTONS.map(({ value, label }) => (
+              <button
+                key={value}
+                onClick={() => handlePeriodChange(value)}
+                disabled={isPending}
+                aria-pressed={period === value}
+                className={`px-3 py-1.5 text-xs font-medium transition disabled:opacity-50 ${
+                  period === value
+                    ? "bg-primary text-primary-foreground"
+                    : "text-muted-foreground hover:bg-muted"
+                }`}
+              >
+                {label}
+              </button>
+            ))}
           </div>
-
-          {/* Live */}
-          {liveInterval !== undefined && (
-            <div className="flex items-center gap-2">
-              <span className="text-muted-foreground text-xs font-medium">
-                Live
-              </span>
-
-              <div className="border-border flex overflow-hidden rounded-lg border">
-                {LIVE_INTERVAL_BUTTONS.map(({ value, label }) => (
-                  <button
-                    key={value}
-                    disabled={isPending}
-                    onClick={() => setLiveInterval?.(value)}
-                    className={`px-3 py-1.5 text-xs font-medium transition ${
-                      liveInterval === value
-                        ? "bg-primary text-primary-foreground"
-                        : "text-muted-foreground hover:bg-muted"
-                    }`}
-                  >
-                    {label}
-                  </button>
-                ))}
-              </div>
-            </div>
-          )}
         </div>
       </div>
 
-      {/* Loading indicator */}
       {isPending && (
-        <div className="text-muted-foreground text-xs">Loading...</div>
+        <p className="text-muted-foreground text-xs" role="status" aria-live="polite">
+          Loading chart data…
+        </p>
       )}
 
-      {/* Chart */}
+      {chartError && !isPending && (
+        <p className="text-destructive text-xs" role="alert">
+          {chartError}
+        </p>
+      )}
+
       <div
         ref={chartContainerRef}
         className="border-border bg-card w-full rounded-xl border"
         style={{ height }}
+        aria-label="Candlestick price chart"
+        role="img"
       />
     </div>
   );

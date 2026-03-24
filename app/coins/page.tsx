@@ -9,11 +9,16 @@ import CoinsPagination from "@/components/coins/CoinsPagination";
 
 import type { CoinMarketData, NextPageProps, DataTableColumn } from "@/types";
 
+export const revalidate = 30;
+
 const PER_PAGE = 10;
+// CoinGecko free tier caps at page 250 with 10 per page = 2500 coins
+const MAX_PAGES = 250;
 
 const Coins = async ({ searchParams }: NextPageProps) => {
   const params = await searchParams;
-  const currentPage = Number(params?.page ?? 1);
+  const rawPage = Number(params?.page ?? 1);
+  const currentPage = Math.max(1, Math.min(rawPage, MAX_PAGES));
 
   let coinsData: CoinMarketData[] = [];
 
@@ -33,7 +38,7 @@ const Coins = async ({ searchParams }: NextPageProps) => {
   const columns: DataTableColumn<CoinMarketData>[] = [
     {
       header: "Rank",
-      cellClassName: "rank-cell",
+      cellClassName: "w-12",
       cell: (coin) => (
         <Link
           href={`/coins/${coin.id}`}
@@ -46,34 +51,37 @@ const Coins = async ({ searchParams }: NextPageProps) => {
     },
     {
       header: "Token",
-      cellClassName: "token-cell",
       cell: (coin) => (
-        <div className="flex items-center gap-3">
+        <Link
+          href={`/coins/${coin.id}`}
+          className="flex items-center gap-3 transition hover:opacity-80"
+        >
           <Image
             src={coin.image}
             alt={coin.name}
             width={36}
             height={36}
             loading="lazy"
-            className="h-9 w-auto"
+            className="h-9 w-auto rounded-full"
           />
-
           <p className="font-medium">
-            {coin.name} ({coin.symbol.toUpperCase()})
+            {coin.name}{" "}
+            <span className="text-muted-foreground text-xs">
+              ({coin.symbol.toUpperCase()})
+            </span>
           </p>
-        </div>
+        </Link>
       ),
     },
     {
       header: "Price",
-      cellClassName: "price-cell",
       cell: (coin) => formatCurrency(coin.current_price),
     },
     {
       header: "24h Change",
-      cellClassName: "change-cell",
       cell: (coin) => {
-        const isTrendingUp = coin.price_change_percentage_24h > 0;
+        const change = coin.price_change_percentage_24h;
+        const isTrendingUp = change > 0;
 
         return (
           <span
@@ -83,44 +91,48 @@ const Coins = async ({ searchParams }: NextPageProps) => {
             )}
           >
             {isTrendingUp && "+"}
-            {formatPercentage(coin.price_change_percentage_24h)}
+            {formatPercentage(change)}
           </span>
         );
       },
     },
     {
       header: "Market Cap",
-      cellClassName: "market-cap-cell",
       cell: (coin) => formatCurrency(coin.market_cap),
     },
   ];
 
-  const hasMorePages = coinsData.length === PER_PAGE;
-
-  const estimatedTotalPages =
-    currentPage >= 100 ? Math.ceil(currentPage / 100) * 100 + 100 : 100;
+  const hasMorePages = coinsData.length === PER_PAGE && currentPage < MAX_PAGES;
 
   return (
-    <main className="bg-background min-h-screen">
-      <div className="mx-auto w-full max-w-350 px-4 py-6 sm:px-6 sm:py-8 lg:px-8 lg:py-10">
-        <section className="content">
-          <h4 className="mb-6 text-xl font-semibold">All Coins</h4>
+    <div className="bg-background min-h-screen">
+      <div className="mx-auto w-full max-w-[1400px] px-4 py-6 sm:px-6 sm:py-8 lg:px-8 lg:py-10">
+        <section>
+          <h1 className="mb-6 text-xl font-semibold">All Coins</h1>
 
-          <DataTable
-            tableClassName="coins-table"
-            columns={columns}
-            data={coinsData}
-            rowKey={(coin) => coin.id}
-          />
+          {coinsData.length === 0 ? (
+            <div className="text-muted-foreground py-12 text-center text-sm">
+              Failed to load coins. Please try again later.
+            </div>
+          ) : (
+            <DataTable
+              tableClassName="coins-table"
+              columns={columns}
+              data={coinsData}
+              rowKey={(coin) => coin.id}
+            />
+          )}
 
-          <CoinsPagination
-            currentPage={currentPage}
-            totalPages={estimatedTotalPages}
-            hasMorePages={hasMorePages}
-          />
+          <div className="mt-6">
+            <CoinsPagination
+              currentPage={currentPage}
+              totalPages={MAX_PAGES}
+              hasMorePages={hasMorePages}
+            />
+          </div>
         </section>
       </div>
-    </main>
+    </div>
   );
 };
 

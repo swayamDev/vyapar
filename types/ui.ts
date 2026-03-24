@@ -18,7 +18,6 @@ export interface LiveCoinHeaderProps {
 
 export interface LiveDataProps {
   coinId: string;
-  poolId: string;
   coin: CoinDetailsData;
   coinOHLCData?: OHLCData[];
   children?: React.ReactNode;
@@ -26,8 +25,10 @@ export interface LiveDataProps {
 
 export type ButtonSize =
   | "default"
+  | "xs"
   | "sm"
   | "lg"
   | "icon"
+  | "icon-xs"
   | "icon-sm"
   | "icon-lg";

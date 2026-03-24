@@ -31,10 +31,10 @@ const CoinsPagination = ({
   );
 
   const pageNumbers = buildPageNumbers(currentPage, totalPages);
-  const isLastPage = !hasMorePages || currentPage === totalPages;
+  const isLastPage = !hasMorePages || currentPage >= totalPages;
 
   return (
-    <UIPagination id="coins-pagination" aria-label="Coins pagination">
+    <UIPagination aria-label="Coins pagination">
       <PaginationContent className="gap-1 sm:gap-2">
         {/* Previous */}
         <PaginationItem>
@@ -50,19 +50,20 @@ const CoinsPagination = ({
         </PaginationItem>
 
         {/* Page Numbers */}
-        {pageNumbers.map((page) => (
+        {pageNumbers.map((page, index) => (
           <PaginationItem
-            key={page === ELLIPSIS ? `ellipsis-${Math.random()}` : page}
+            key={page === ELLIPSIS ? `ellipsis-${index}` : page}
           >
             {page === ELLIPSIS ? (
               <PaginationEllipsis />
             ) : (
               <PaginationLink
-                onClick={() => handlePageChange(page)}
+                onClick={() => handlePageChange(page as number)}
                 aria-current={currentPage === page ? "page" : undefined}
                 className={cn(
                   "h-9 w-9 cursor-pointer",
-                  currentPage === page && "bg-primary text-primary-foreground",
+                  currentPage === page &&
+                    "bg-primary text-primary-foreground pointer-events-none",
                 )}
               >
                 {page}

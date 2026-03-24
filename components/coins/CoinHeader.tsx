@@ -53,62 +53,72 @@ const CoinHeader = ({
     ],
   );
 
+  const changeLabel = isTrendingUp
+    ? `+${formatPercentage(livePriceChangePercentage24h)}`
+    : formatPercentage(livePriceChangePercentage24h);
+
   return (
-    <section id="coin-header" className="space-y-6">
-      <h3 className="text-lg font-semibold">{name}</h3>
+    <section aria-label={`${name} market data`} className="space-y-6">
+      <h1 className="text-lg font-semibold">{name}</h1>
 
       <div className="flex items-center gap-6">
         <Image
           src={image}
-          alt={name}
-          width={77}
-          height={77}
+          alt={`${name} logo`}
+          width={64}
+          height={64}
           priority
           className="rounded-full"
         />
 
         <div className="flex flex-col gap-2">
-          <div className="flex items-center gap-3">
-            <h1 className="text-3xl font-bold">
+          <div className="flex flex-wrap items-center gap-3">
+            <p className="text-3xl font-bold">
               {formatCurrency(livePrice ?? 0)}
-            </h1>
+            </p>
 
             <Badge
               className={cn(
                 "flex items-center gap-1",
-                isTrendingUp ? "badge-up" : "badge-down",
+                isTrendingUp
+                  ? "bg-green-500/15 text-green-600 dark:text-green-400"
+                  : "bg-red-500/15 text-red-600 dark:text-red-400",
               )}
             >
-              {formatPercentage(livePriceChangePercentage24h)}
               {isTrendingUp ? (
-                <TrendingUp size={16} />
+                <TrendingUp size={14} />
               ) : (
-                <TrendingDown size={16} />
+                <TrendingDown size={14} />
               )}
-              (24h)
+              {changeLabel} (24h)
             </Badge>
           </div>
         </div>
       </div>
 
-      <ul className="grid grid-cols-3 gap-6">
+      <ul className="grid grid-cols-3 gap-4 sm:gap-6">
         {stats.map((stat) => (
           <li key={stat.label}>
-            <p className="text-muted-foreground text-sm">{stat.label}</p>
+            <p className="text-muted-foreground mb-1 text-xs sm:text-sm">
+              {stat.label}
+            </p>
 
             <div
               className={cn(
-                "flex items-center gap-1 font-medium",
+                "flex items-center gap-1 text-sm font-semibold sm:text-base",
                 stat.isUp ? "text-green-500" : "text-red-500",
               )}
             >
-              <p>{stat.formatter(stat.value)}</p>
+              <span>
+                {stat.isUp && stat.showIcon ? "+" : ""}
+                {stat.formatter(stat.value)}
+              </span>
 
               {stat.showIcon &&
                 (stat.isUp ? (
-                  <TrendingUp size={16} />
+                  <TrendingUp size={14} />
                 ) : (
-                  <TrendingDown size={16} />
+                  <TrendingDown size={14} />
                 ))}
             </div>
           </li>

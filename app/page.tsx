@@ -10,10 +10,10 @@ import {
   TrendingCoinsFallback,
 } from "@/components/home/fallback";
 
-export default async function Page() {
+export default function Page() {
   return (
     <div className="bg-background">
-      <div className="mx-auto w-full max-w-350 px-4 py-6 sm:px-6 sm:py-8 lg:px-8 lg:py-10">
+      <div className="mx-auto w-full max-w-[1400px] px-4 py-6 sm:px-6 sm:py-8 lg:px-8 lg:py-10">
         <div className="space-y-6 lg:space-y-8">
           {/* Top Section */}
           <section
@@ -32,7 +32,7 @@ export default async function Page() {
                   </p>
                 </header>
 
-                <div className="min-h-100 p-5">
+                <div className="min-h-[400px] p-5">
                   <Suspense fallback={<CoinOverviewFallback />}>
                     <CoinOverview />
                   </Suspense>

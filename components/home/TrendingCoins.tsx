@@ -8,7 +8,7 @@ import DataTable from "@/components/tables/DataTable";
 import { TrendingCoinsFallback } from "./fallback";
 
 const TrendingCoins = async () => {
-  let trendingCoins;
+  let trendingCoins: { coins: TrendingCoin[] } | null = null;
 
   try {
     trendingCoins = await fetcher<{ coins: TrendingCoin[] }>(
@@ -21,12 +21,17 @@ const TrendingCoins = async () => {
     return <TrendingCoinsFallback />;
   }
 
+  const coins = trendingCoins?.coins?.slice(0, 6) ?? [];
+
+  if (coins.length === 0) {
+    return <TrendingCoinsFallback />;
+  }
+
   const columns: DataTableColumn<TrendingCoin>[] = [
     {
       header: "Coin",
       cell: (coin) => {
         const item = coin.item;
-
         return (
           <Link
             href={`/coins/${item.id}`}
@@ -39,7 +44,6 @@ const TrendingCoins = async () => {
               height={32}
               className="rounded-full"
             />
-
             <div className="flex flex-col leading-tight">
               <span className="text-foreground text-sm font-medium">
                 {item.name}
@@ -55,11 +59,8 @@ const TrendingCoins = async () => {
     {
       header: "24h",
       cell: (coin) => {
-        const item = coin.item;
-        const change = item?.data?.price_change_percentage_24h?.usd ?? 0;
-
+        const change = coin.item?.data?.price_change_percentage_24h?.usd ?? 0;
         const isUp = change > 0;
-
         return (
           <div
             className={cn(
@@ -67,8 +68,9 @@ const TrendingCoins = async () => {
               isUp ? "text-green-500" : "text-red-500",
             )}
           >
+            {isUp ? "+" : ""}
             {formatPercentage(change)}
-            {isUp ? <TrendingUp size={16} /> : <TrendingDown size={16} />}
+            {isUp ? <TrendingUp size={14} /> : <TrendingDown size={14} />}
           </div>
         );
       },
@@ -76,7 +78,7 @@ const TrendingCoins = async () => {
     {
       header: "Price",
       cell: (coin) => (
-        <span className="text-sm font-medium">
+        <span className="tabular-nums text-sm font-medium">
           {formatCurrency(coin.item?.data?.price ?? 0)}
         </span>
       ),
@@ -84,16 +86,14 @@ const TrendingCoins = async () => {
   ];
 
   return (
-    <div className="space-y-3">
-      <DataTable
-        data={trendingCoins?.coins?.slice(0, 6) ?? []}
-        columns={columns}
-        rowKey={(coin) => coin.item.id}
-        tableClassName="w-full"
-        headerCellClassName="text-xs font-medium text-muted-foreground py-3"
-        bodyCellClassName="py-3"
-      />
-    </div>
+    <DataTable
+      data={coins}
+      columns={columns}
+      rowKey={(coin) => coin.item.id}
+      tableClassName="w-full"
+      headerCellClassName="text-xs font-medium text-muted-foreground py-3"
+      bodyCellClassName="py-3"
+    />
   );
 };
 

@@ -1,87 +1,69 @@
 "use client";
 
-import { useMemo, useState } from "react";
-import { LiveDataProps, DataTableColumn, Trade } from "@/types";
+import { useMemo } from "react";
+import { LiveDataProps, DataTableColumn } from "@/types";
 
 import { Separator } from "@/components/ui/separator";
-import CandlestickChart from "@/components/charts/CandlestickChart";
+import CandlestickChart from "@/components/charts/CandlestickChartClient";
 import CoinHeader from "@/components/coins/CoinHeader";
-import DataTable from "@/components/tables/DataTable";
+import { ErrorBoundary } from "@/components/ui/error-boundary";
 
 import { useCoinGeckoWebSocket } from "@/hooks/useCoinGeckoWebSocket";
-
-import { formatCurrency, timeAgo } from "@/lib/utils";
+import { formatCurrency, formatPercentage } from "@/lib/utils";
+import { cn } from "@/lib/utils";
 
 const LiveMarketWrapper = ({
-  children,
   coinId,
-  poolId,
   coin,
-  coinOHLCData,
+  coinOHLCData = [],
 }: LiveDataProps) => {
-  const [liveInterval, setLiveInterval] = useState<"1s" | "1m">("1s");
+  const { price, isConnected } = useCoinGeckoWebSocket({ coinId });
 
-  const {
-    trades = [],
-    ohlcv,
-    price,
-  } = useCoinGeckoWebSocket({
-    coinId,
-    poolId,
-    liveInterval,
-  });
-
-  /* Live price fallbacks */
+  // Fall back to SSR-fetched market data until first poll completes
   const livePrice = price?.usd ?? coin.market_data.current_price.usd;
-
   const liveChange24h =
     price?.change24h ??
     coin.market_data.price_change_percentage_24h_in_currency.usd;
 
-  /* Trade table columns */
-  const tradeColumns = useMemo<DataTableColumn<Trade>[]>(
-    () => [
-      {
-        header: "Price",
-        cellClassName: "price-cell",
-        cell: (trade) => (trade.price ? formatCurrency(trade.price) : "-"),
-      },
-      {
-        header: "Amount",
-        cellClassName: "amount-cell",
-        cell: (trade) => trade.amount?.toFixed(4) ?? "-",
-      },
-      {
-        header: "Value",
-        cellClassName: "value-cell",
-        cell: (trade) => (trade.value ? formatCurrency(trade.value) : "-"),
-      },
-      {
-        header: "Buy / Sell",
-        cellClassName: "type-cell",
-        cell: (trade) => (
-          <span
-            className={
-              trade.type === "b"
-                ? "font-medium text-green-500"
-                : "font-medium text-red-500"
-            }
-          >
-            {trade.type === "b" ? "Buy" : "Sell"}
-          </span>
-        ),
-      },
-      {
-        header: "Time",
-        cellClassName: "time-cell",
-        cell: (trade) => (trade.timestamp ? timeAgo(trade.timestamp) : "-"),
-      },
-    ],
-    [],
-  );
+  // Market stats shown below the chart (replaces live trades table on free tier)
+  const stats = useMemo(() => [
+    {
+      label: "Market Cap",
+      value: formatCurrency(
+        price?.marketCap ?? coin.market_data.market_cap.usd,
+      ),
+    },
+    {
+      label: "24h Volume",
+      value: formatCurrency(
+        price?.volume24h ?? coin.market_data.total_volume.usd,
+      ),
+    },
+    {
+      label: "24h High",
+      value: formatCurrency(coin.market_data.high_24h?.usd ?? 0),
+    },
+    {
+      label: "24h Low",
+      value: formatCurrency(coin.market_data.low_24h?.usd ?? 0),
+    },
+    {
+      label: "30d Change",
+      value: formatPercentage(
+        coin.market_data.price_change_percentage_30d_in_currency.usd,
+      ),
+      isChange: true,
+      changeValue:
+        coin.market_data.price_change_percentage_30d_in_currency.usd,
+    },
+    {
+      label: "All-Time High",
+      value: formatCurrency(coin.market_data.ath?.usd ?? 0),
+    },
+  ], [price, coin]);
 
   return (
-    <section id="live-market-wrapper">
+    <div className="space-y-6">
       {/* Coin Header */}
       <CoinHeader
         name={coin.name}
@@ -94,47 +76,59 @@ const LiveMarketWrapper = ({
         priceChange24h={coin.market_data.price_change_24h_in_currency.usd}
       />
 
-      <Separator className="divider" />
+      <Separator />
 
-      {/* Chart Section */}
-      <div className="trend">
+      {/* Chart */}
+      <ErrorBoundary>
         <CandlestickChart
           coinId={coinId}
           data={coinOHLCData}
-          liveOhlcv={ohlcv}
-          mode="live"
           initialPeriod="daily"
-          liveInterval={liveInterval}
-          setLiveInterval={setLiveInterval}
         >
-          <h4>Trend Overview</h4>
+          <div className="flex items-center gap-2">
+            <h2 className="text-sm font-semibold">Price Chart</h2>
+            <span
+              className={`inline-flex h-2 w-2 rounded-full transition-colors ${
+                isConnected ? "bg-green-500" : "bg-muted-foreground"
+              }`}
+              title={isConnected ? "Price data live (30s updates)" : "Fetching price…"}
+              aria-label={isConnected ? "Price updates active" : "Fetching price data"}
+            />
+          </div>
         </CandlestickChart>
+      </ErrorBoundary>
+
+      <Separator />
+
+      {/* Market Stats — replaces live trades (free tier has no on-chain data) */}
+      <div>
+        <h2 className="mb-4 text-sm font-semibold">Market Stats</h2>
+
+        <dl className="grid grid-cols-2 gap-3 sm:grid-cols-3">
+          {stats.map((stat) => (
+            <div
+              key={stat.label}
+              className="bg-muted/40 border-border rounded-xl border px-4 py-3"
+            >
+              <dt className="text-muted-foreground mb-1 text-xs">{stat.label}</dt>
+              <dd
+                className={cn(
+                  "text-sm font-semibold tabular-nums",
+                  stat.isChange
+                    ? (stat.changeValue ?? 0) >= 0
+                      ? "text-green-500"
+                      : "text-red-500"
+                    : "text-foreground",
+                )}
+              >
+                {stat.isChange && (stat.changeValue ?? 0) > 0 ? "+" : ""}
+                {stat.value}
+              </dd>
+            </div>
+          ))}
+        </dl>
       </div>
-
-      <Separator className="divider" />
-
-      {/* Trades Table */}
-      <div className="trades">
-        <h4>Recent Trades</h4>
-
-        {trades.length === 0 ? (
-          <p className="text-muted-foreground py-6 text-center text-sm">
-            Waiting for live trades...
-          </p>
-        ) : (
-          <DataTable
-            columns={tradeColumns}
-            data={trades}
-            rowKey={(trade: Trade, index: number) =>
-              `${trade.timestamp}-${trade.price}-${index}`
-            }
-            tableClassName="trades-table"
-          />
-        )}
-      </div>
-
-      {children}
-    </section>
+    </div>
   );
 };
 

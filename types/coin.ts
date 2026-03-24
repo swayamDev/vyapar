@@ -23,15 +23,6 @@ export interface CoinDetailsData {
   symbol: string;
   asset_platform_id?: string | null;
 
-  detail_platforms?: Record<
-    string,
-    {
-      decimal_place?: number | null;
-      contract_address?: string | null;
-      geckoterminal_url?: string | null;
-    }
-  >;
-
   image: {
     large: string;
     small: string;
@@ -57,6 +48,15 @@ export interface CoinDetailsData {
     total_volume: {
       usd: number;
     };
+    high_24h?: {
+      usd: number;
+    };
+    low_24h?: {
+      usd: number;
+    };
+    ath?: {
+      usd: number;
+    };
   };
 
   market_cap_rank: number;
@@ -70,6 +70,16 @@ export interface CoinDetailsData {
     blockchain_site?: string[];
     subreddit_url?: string | null;
   };
+
+  // These fields exist on the free API response but may be null
+  detail_platforms?: Record<
+    string,
+    {
+      decimal_place?: number | null;
+      contract_address?: string | null;
+      geckoterminal_url?: string | null;
+    }
+  >;
 }
 
 export interface TrendingCoinItem {

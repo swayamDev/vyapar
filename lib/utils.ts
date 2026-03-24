@@ -14,30 +14,34 @@ export function formatCurrency(
   digits = 2,
   currency = "USD",
   showSymbol = true,
-) {
+): string {
   if (value == null || Number.isNaN(value)) {
     return showSymbol ? "$0.00" : "0.00";
   }
 
+  // For very small prices (e.g. meme coins), use more decimal places
+  const effectiveDigits =
+    digits === 2 && value > 0 && value < 0.01
+      ? Math.min(8, Math.max(2, -Math.floor(Math.log10(value)) + 2))
+      : digits;
+
   return value.toLocaleString(undefined, {
     style: showSymbol ? "currency" : "decimal",
-    currency,
-    minimumFractionDigits: digits,
-    maximumFractionDigits: digits,
+    currency: currency.toUpperCase(),
+    minimumFractionDigits: showSymbol ? 2 : effectiveDigits,
+    maximumFractionDigits: effectiveDigits,
   });
 }
 
 /* Percentage Formatter */
 export function formatPercentage(change?: number | null): string {
   if (change == null || Number.isNaN(change)) return "0.0%";
-
   return `${change.toFixed(1)}%`;
 }
 
 /* Trending UI classes */
 export function trendingClasses(value: number) {
   const isUp = value > 0;
-
   return {
     textClass: isUp ? "text-green-400" : "text-red-400",
     bgClass: isUp ? "bg-green-500/10" : "bg-red-500/10",
@@ -49,26 +53,32 @@ export function trendingClasses(value: number) {
 export function timeAgo(date: string | number | Date): string {
   const now = Date.now();
   const past = new Date(date).getTime();
-  const diff = now - past;
 
+  if (Number.isNaN(past)) return "—";
+
+  const diff = now - past;
   const seconds = Math.floor(diff / 1000);
   const minutes = Math.floor(seconds / 60);
   const hours = Math.floor(minutes / 60);
   const days = Math.floor(hours / 24);
   const weeks = Math.floor(days / 7);
 
-  if (seconds < 60) return "just now";
-  if (minutes < 60) return `${minutes} min`;
-  if (hours < 24) return `${hours} hour${hours > 1 ? "s" : ""}`;
-  if (days < 7) return `${days} day${days > 1 ? "s" : ""}`;
-  if (weeks < 4) return `${weeks} week${weeks > 1 ? "s" : ""}`;
+  if (seconds < 5) return "just now";
+  if (seconds < 60) return `${seconds}s ago`;
+  if (minutes < 60) return `${minutes}m ago`;
+  if (hours < 24) return `${hours}h ago`;
+  if (days < 7) return `${days}d ago`;
+  if (weeks < 4) return `${weeks}w ago`;
 
   return new Date(past).toISOString().split("T")[0];
 }
 
-/* Convert CoinGecko OHLC → Lightweight Charts */
+/* Convert CoinGecko OHLC → Lightweight Charts
+ * CoinGecko returns [timestamp_ms, open, high, low, close]
+ * lightweight-charts expects { time: UTCTimestamp (seconds), open, high, low, close }
+ */
 export function convertOHLCData(data: OHLCData[]) {
-  const seen = new Set();
+  const seen = new Set<number>();
 
   return data
     .map((d) => ({
@@ -79,10 +89,12 @@ export function convertOHLCData(data: OHLCData[]) {
       close: d[4],
     }))
     .filter((item) => {
-      if (seen.has(item.time)) return false;
-      seen.add(item.time);
+      const t = item.time as number;
+      if (seen.has(t)) return false;
+      seen.add(t);
       return true;
-    });
+    })
+    .sort((a, b) => (a.time as number) - (b.time as number));
 }
 
 /* Pagination helper */
@@ -92,13 +104,13 @@ export function buildPageNumbers(
   currentPage: number,
   totalPages: number,
 ): (number | typeof ELLIPSIS)[] {
-  const MAX_VISIBLE_PAGES = 5;
-  const pages: (number | typeof ELLIPSIS)[] = [];
+  const MAX_VISIBLE = 5;
 
-  if (totalPages <= MAX_VISIBLE_PAGES) {
+  if (totalPages <= MAX_VISIBLE) {
     return Array.from({ length: totalPages }, (_, i) => i + 1);
   }
 
+  const pages: (number | typeof ELLIPSIS)[] = [];
   pages.push(1);
 
   const start = Math.max(2, currentPage - 1);

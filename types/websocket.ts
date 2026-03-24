@@ -1,9 +1,12 @@
 import { OHLCData } from "./chart";
 
+// WebSocket types kept for potential future Pro upgrade, but the app
+// currently uses REST polling on the free tier.
+
 export interface Trade {
   price?: number;
   timestamp?: number;
-  type?: string;
+  type?: "b" | "s" | string;
   amount?: number;
   value?: number;
 }
@@ -18,6 +21,7 @@ export interface ExtendedPriceData {
   timestamp?: number;
 }
 
+// Legacy WS types — not used on free tier
 export interface WebSocketMessage {
   type?: string;
   c?: string;
@@ -32,16 +36,16 @@ export interface WebSocketMessage {
   o?: number;
   h?: number;
   l?: number;
+  c2?: number;
   t?: number;
   to?: number;
   ty?: string;
-  channel?: string;
   identifier?: string;
 }
 
 export interface UseCoinGeckoWebSocketProps {
   coinId: string;
-  poolId: string;
+  poolId?: string;
   liveInterval?: "1s" | "1m";
 }
 

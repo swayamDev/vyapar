@@ -2,6 +2,7 @@
 
 import { useMemo, useState } from "react";
 import Image from "next/image";
+import { ArrowDownUp } from "lucide-react";
 
 import { Input } from "@/components/ui/input";
 import { formatCurrency } from "@/lib/utils";
@@ -18,93 +19,90 @@ import type { ConverterProps } from "@/types";
 
 const CryptoConverter = ({ symbol, icon, priceList }: ConverterProps) => {
   const [currency, setCurrency] = useState<string>("usd");
-  const [amount, setAmount] = useState<number>(10);
+  const [amount, setAmount] = useState<string>("10");
 
   const currencies = useMemo(() => Object.keys(priceList), [priceList]);
 
+  const numericAmount = useMemo(() => {
+    const parsed = parseFloat(amount);
+    return Number.isNaN(parsed) || parsed < 0 ? 0 : parsed;
+  }, [amount]);
+
   const convertedPrice = useMemo(() => {
     const rate = priceList[currency] ?? 0;
-    return amount * rate;
-  }, [amount, currency, priceList]);
+    return numericAmount * rate;
+  }, [numericAmount, currency, priceList]);
 
   const handleAmountChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const value = Number(e.target.value);
-    setAmount(Number.isNaN(value) ? 0 : value);
+    const val = e.target.value;
+    // Allow empty string, digits, one dot
+    if (val === "" || /^\d*\.?\d*$/.test(val)) {
+      setAmount(val);
+    }
   };
 
   return (
-    <section id="converter">
-      <h4 className="text-lg font-semibold">
+    <section
+      aria-label={`${symbol.toUpperCase()} converter`}
+      className="bg-card border-border rounded-2xl border p-5"
+    >
+      <h2 className="text-foreground mb-4 text-sm font-semibold">
         {symbol.toUpperCase()} Converter
-      </h4>
+      </h2>
 
-      <div className="panel">
-        {/* Input */}
-
-        <div className="input-wrapper">
+      <div className="space-y-3">
+        {/* Crypto input */}
+        <div className="border-border bg-background flex items-center gap-3 rounded-xl border px-3 py-2">
+          <Image
+            src={icon}
+            alt={symbol}
+            width={24}
+            height={24}
+            className="shrink-0 rounded-full"
+          />
+          <span className="text-muted-foreground min-w-[2.5rem] text-xs font-medium uppercase">
+            {symbol}
+          </span>
           <Input
-            type="number"
-            min="0"
-            step="any"
-            placeholder="Amount"
+            type="text"
+            inputMode="decimal"
+            placeholder="0"
             value={amount}
             onChange={handleAmountChange}
-            className="input"
-            aria-label={`${symbol} amount`}
+            className="border-0 bg-transparent p-0 text-right text-base font-semibold shadow-none focus-visible:ring-0"
+            aria-label={`Amount in ${symbol.toUpperCase()}`}
           />
+        </div>
 
-          <div className="coin-info">
-            <Image
-              src={icon}
-              alt={symbol}
-              width={20}
-              height={20}
-              loading="lazy"
-            />
-            <p>{symbol.toUpperCase()}</p>
+        {/* Swap icon */}
+        <div className="flex justify-center">
+          <div className="bg-muted rounded-full p-1.5">
+            <ArrowDownUp size={14} className="text-muted-foreground" />
           </div>
         </div>
 
-        {/* Divider */}
-
-        <div className="divider">
-          <div className="line" />
-
-          <Image
-            src="/converter.svg"
-            alt="converter icon"
-            width={32}
-            height={32}
-            className="icon"
-          />
-        </div>
-
-        {/* Output */}
-
-        <div className="output-wrapper">
-          <p className="text-lg font-semibold">
-            {formatCurrency(convertedPrice, 2, currency, false)}
-          </p>
-
+        {/* Fiat output */}
+        <div className="border-border bg-background flex items-center gap-3 rounded-xl border px-3 py-2">
           <Select value={currency} onValueChange={setCurrency}>
-            <SelectTrigger className="select-trigger">
-              <SelectValue placeholder="Select currency">
-                {currency.toUpperCase()}
-              </SelectValue>
+            <SelectTrigger
+              className="h-auto w-auto border-0 bg-transparent p-0 text-xs font-medium uppercase shadow-none focus:ring-0"
+              aria-label="Select currency"
+            >
+              <SelectValue>{currency.toUpperCase()}</SelectValue>
             </SelectTrigger>
 
-            <SelectContent className="select-content" data-converter>
-              {currencies.map((currencyCode) => (
-                <SelectItem
-                  value={currencyCode}
-                  key={currencyCode}
-                  className="select-item"
-                >
-                  {currencyCode.toUpperCase()}
+            <SelectContent className="max-h-60">
+              {currencies.map((code) => (
+                <SelectItem value={code} key={code} className="uppercase">
+                  {code.toUpperCase()}
                 </SelectItem>
               ))}
             </SelectContent>
           </Select>
+
+          <p className="ml-auto text-base font-semibold">
+            {formatCurrency(convertedPrice, 2, currency.toUpperCase(), true)}
+          </p>
         </div>
       </div>
     </section>
